@@ -1,0 +1,14 @@
+# Versions tested on Windows 11, Python 3.14.7 (2026-10-19)
+numpy==2.5.4
+# 1, 2: Qt Widgets / Qt Quick
+PySide6==6.12.0
+pyqtgraph==0.14.0
+# 3: NiceGUI (pywebview gives it a native window)
+nicegui==3.18.0
+pywebview==6.2.1
+# 4: Flet (charts are a separate package since 1.0)
+flet==1.0.4
+flet-charts==1.0.4
+flet-desktop==1.0.4
+# 5: Dear PyGui
+dearpygui==2.3.1

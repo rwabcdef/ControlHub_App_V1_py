@@ -1,0 +1,29 @@
+[project]
+name = "controlhub"
+version = "0.1.0"
+description = "ControlHub AA26 desktop app - real-time motor telemetry and configuration (PySide6 port of the Electron app)"
+requires-python = ">=3.12"
+dependencies = [
+    "PySide6==6.12.0",
+    "pyqtgraph==0.14.0",
+    "numpy==2.5.4",
+    "qasync==0.28.0",
+    "paho-mqtt==2.1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pyinstaller==6.22.3"]
+
+[project.gui-scripts]
+controlhub = "controlhub.__main__:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["controlhub*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning:qasync"]
