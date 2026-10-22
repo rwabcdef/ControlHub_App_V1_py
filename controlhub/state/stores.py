@@ -164,10 +164,16 @@ class DirectMotor:
     None until known."""
 
     duty: int | None = None
+    requested: int | None = None
+    """The duty last asked for - the dial's latest value (or Stop's 0), ahead of the hub
+    while a set is on its way; the hub's duty again after a read"""
     direction: MotorDirection | None = None
     duty_error: RpmError | None = None
     """Why the last set_duty_live() failed (a new object per failure, as rpm_error);
     cleared by the next one that succeeds"""
+    dial_reset: object | None = None
+    """A new object on each Stop. Passed to the dial as its error (with duty_error), so it
+    drops a value of its own that was never sent and shows the hub's."""
     error: str | None = None
     """Why the last read or direction set failed"""
 
@@ -199,7 +205,7 @@ class DirectStore(QObject):
         """Read a fitted motor's duty and direction (MOTOR GP, GD); a failure lands in error."""
         try:
             r = await self._comms.motor_get(motor)
-            self._patch(motor, duty=r.duty, direction=r.direction, error=None)
+            self._patch(motor, duty=r.duty, requested=r.duty, direction=r.direction, error=None)
         except Exception as e:  # noqa: BLE001
             self._patch(motor, error=str(e))
 
@@ -208,6 +214,7 @@ class DirectStore(QObject):
         duty_error. As CtrlStore.set_rpm_live(), one set per motor is in flight at a time,
         and only the latest value given meanwhile is sent next."""
         self._pending[motor] = duty
+        self._patch(motor, requested=duty)
         if motor in self._in_flight:
             return
         self._in_flight.add(motor)
@@ -228,6 +235,13 @@ class DirectStore(QObject):
                         await self.load(motor)  # the hub kept something else - show what
         finally:
             self._in_flight.discard(motor)
+
+    def stop(self, motor: MotorId) -> None:
+        """The Stop button: 0% straight away. set_duty_live()'s pending value is a single
+        slot, so 0 replaces whatever the dial left there, and at most the one set already
+        in flight goes out before it."""
+        self._patch(motor, duty_error=None, dial_reset=object())
+        self.set_duty_live(motor, 0)
 
     async def set_direction(self, motor: MotorId, direction: MotorDirection) -> None:
         """Set the bridge direction (MOTOR D); a failure lands in error."""

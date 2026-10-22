@@ -53,6 +53,8 @@ QLabel#mono, QPlainTextEdit#mono {{ font-family: {MONO}; font-size: 12px; }}
 QPushButton {{ background: {PRIMARY}; color: {ON_PRIMARY}; border: 1px solid {PRIMARY}; border-radius: 4px;
   padding: 5px 12px; font-weight: 600; }}
 QPushButton:hover {{ background: {PRIMARY_HOVER}; border-color: {PRIMARY_HOVER}; }}
+QPushButton[tone="error"] {{ background: {ERROR}; border-color: {ERROR}; color: #ffffff; }}
+QPushButton[tone="error"]:hover {{ background: #d32f2f; border-color: #d32f2f; }}
 QPushButton:disabled {{ background: #2a3038; border-color: #2a3038; color: {TEXT_DISABLED}; }}
 QPushButton[variant="outlined"] {{ background: transparent; color: {PRIMARY}; border: 1px solid #2f5d73; }}
 QPushButton[variant="outlined"]:hover {{ background: #14262f; border-color: {PRIMARY}; }}

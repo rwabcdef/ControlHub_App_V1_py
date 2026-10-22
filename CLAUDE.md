@@ -65,7 +65,9 @@ use the simulator source, or a fake hub (see `tests/conftest.py` `FakeHub`).
 `ui/pages/direct.py` drives the hub's motors open loop through its MOTOR socket, with a
 duty dial and a Forward/Reverse switch per motor. The hub takes P and D only while Idle
 and silently refuses them otherwise, so every set is read back. Pressing the pressed
-direction again sends `D` (coast). A run or lift move leaves the bridge at 0% with no
+direction again sends `D` (coast). Stop (enabled once a duty above 0 has been asked for)
+sends 0% through the same coalescing slot as the dial, so unsent dial values are dropped,
+and resets the dial's own value. A run or lift move leaves the bridge at 0% with no
 direction, so `DirectStore` reads it again whenever the hub returns to Idle. Only the
 motors in `MOTORS_FITTED` (`types.py`, currently B) are live. The hub sends selector A
 to motorB until motorA exists, so A's section is drawn but disabled.

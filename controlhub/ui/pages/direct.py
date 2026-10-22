@@ -12,7 +12,7 @@ from ...asyncutil import spawn
 from ...context import Context
 from ...types import MOTOR_DUTY_MAX, MOTORS_FITTED, MotorDirection, MotorId
 from .. import theme
-from ..widgets.chrome import Panel, button, label
+from ..widgets.chrome import CmdButton, Panel, button, label
 from ..widgets.gauge import SpeedDial
 
 MOTOR_IDS: tuple[MotorId, ...] = ("A", "B")
@@ -45,6 +45,9 @@ class MotorSection(Panel):
         self.coast = label("", "caption")
         self.coast.setAlignment(Qt.AlignmentFlag.AlignCenter)
         col.addWidget(self.coast)
+        self.stop = CmdButton("Stop", "■", tone="error")
+        self.stop.clicked.connect(lambda: ctx.direct.stop(motor))
+        col.addWidget(self.stop)
         self.dial = SpeedDial(MOTOR_DUTY_MAX, "Duty", "%", theme.SERIES["duty"], major_ticks=5)
         self.dial.setFixedHeight(DIAL_HEIGHT)
         self.dial.changed.connect(lambda v: ctx.direct.set_duty_live(motor, v))
@@ -82,7 +85,11 @@ class MotorSection(Panel):
             b.setChecked(m.direction == direction)  # type: ignore[attr-defined]
             b.setEnabled(not blocked)  # type: ignore[attr-defined]
         self.coast.setText("No direction - the motor coasts" if m.direction == "disabled" else "")
-        self.dial.set_view(m.duty, "disabled" if blocked else "edit", m.duty_error)
+        # Stop is live whenever a duty above 0 has been asked for, even before the hub has it.
+        running = (m.requested or 0) > 0 or (m.duty or 0) > 0
+        self.stop.set_state(blocked or ("The duty is already 0" if not running else ""))
+        self.dial.set_view(m.duty, "disabled" if blocked else "edit",
+                           m.duty_error if m.duty_error is not None else m.dial_reset)
         if self.content.toolTip() != blocked:
             self.content.setToolTip(blocked)
         msg = m.duty_error.message if m.duty_error is not None else m.error
