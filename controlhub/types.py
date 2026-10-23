@@ -220,6 +220,16 @@ HubClockSetResult = Literal["ok", "refused", "noSocket"]
 
 
 @dataclass
+class HubClockReading:
+    """RTC00 G's answer, e.g. G120261023143007"""
+
+    is_set: bool
+    """Set since the hub's last power up; False = still counting from 2000-01-01 00:00:00"""
+    date_time: str
+    """The hub's local time as it reads it, 'yyyy-mm-dd hh:mm:ss' (no timezone - it has none)"""
+
+
+@dataclass
 class DisplaySettings:
     """UI preferences (localStorage in the Electron app)."""
 

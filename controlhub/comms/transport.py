@@ -40,7 +40,7 @@ class Transport(Protocol):
         motor_set_direction(MotorId, MotorDirection) -> MotorDirection  serial, MQTT (MOTOR)
         lift_start(distance, LiftDirection), lift_down(max_edges),
         lift_stop(), lift_ping() -> PingReport                        MQTT (LIFT0)
-        rtc_set(datetime) -> HubClockSetResult                       serial, MQTT (RTC00)
+        rtc_set(datetime) -> HubClockSetResult, rtc_get() -> HubClockReading  serial, MQTT (RTC00)
     """
 
     async def open(self) -> None: ...

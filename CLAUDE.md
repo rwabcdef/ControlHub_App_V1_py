@@ -38,7 +38,7 @@ use the simulator source, or a fake hub (see `tests/conftest.py` `FakeHub`).
     it reads BGO to learn the run's source. It also handles MOTOR (the Direct page:
     `<id>P<ddd>` / `<id>D<F|R|D>`, read back with `<id>GP` / `<id>GD`), LIFT0
     (`'U'` frames, MQTT only) and RTC00 (the hub's clock: `S<yyyymmddhhmmss>`, answered
-    `S1`/`S0` on the ack).
+    `S1`/`S0` on the ack; `G` reads it, for the Dev page's hub clock panel).
   - `hub.py` sets the hub's clock to the PC's local time once per app run
     (`_hub_clock_loop`, setting `set_hub_time_on_launch`, on by default, on Config →
     ControlHub). It tries when a connection opens and every 10 s after that, until the

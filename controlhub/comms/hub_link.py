@@ -10,8 +10,8 @@ import re
 from datetime import datetime
 
 from ..types import (CTRL_DUTY_MAX, CTRL_DUTY_MIN, CTRL_GAIN_MAX, CTRL_GAIN_SCALE, CTRL_RPM_MAX, LIFT_DISTANCE_MAX,
-                     MOTOR_DUTY_MAX, MOTORS_FITTED, CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, HubState,
-                     LiftDirection, MotorDirection, MotorId, MotorReadback, PingReport)
+                     MOTOR_DUTY_MAX, MOTORS_FITTED, CtrlDirection, CtrlReadback, CtrlSettings, HubClockReading,
+                     HubClockSetResult, HubSocket, HubState, LiftDirection, MotorDirection, MotorId, MotorReadback, PingReport)
 from .errors import CommsError
 from .parser import parse_ctrl_status, parse_hub_mode, parse_lift_status, parse_line
 from .serlink.frame import Frame
@@ -31,6 +31,7 @@ RTC_PROTOCOL = "RTC00"
 """The hub's real time clock socket - on both its links (uart2 and MQTT)"""
 
 _BGA_RE = re.compile(r"^(\d{6})\.(\d{4})\.(\d{4})$")
+_RTC_G_RE = re.compile(r"^G([01])(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$")
 _MOTOR_DIRECTION_FROM_CHAR: dict[str, MotorDirection] = {"F": "forward", "R": "reverse", "D": "disabled"}
 _MOTOR_DIRECTION_TO_CHAR = {v: k for k, v in _MOTOR_DIRECTION_FROM_CHAR.items()}
 
@@ -302,6 +303,19 @@ class HubLink:
         if data == "S0":
             return "refused"
         raise CommsError(f'{RTC_PROTOCOL}: unexpected S reply "{data}"')
+
+    async def rtc_get(self) -> HubClockReading:
+        """Read the hub's clock: RTC00T571001G -> G120261023143007, i.e. G<1|0><yyyymmddhhmmss> -
+        1 if set since power up, 0 if still counting from 2000-01-01. Raises CommsError on a
+        plain ACK_OK (firmware without a clock)."""
+        data = _check_result(RTC_PROTOCOL, await self.rtc.send_data("G", True))
+        if data is None:
+            raise CommsError(f"The hub has no {RTC_PROTOCOL} socket (firmware without a clock)")
+        m = _RTC_G_RE.match(data)
+        if m is None:
+            raise CommsError(f'{RTC_PROTOCOL}: unexpected G reply "{data}"')
+        y, mo, d, h, mi, s = m.group(2, 3, 4, 5, 6, 7)
+        return HubClockReading(m.group(1) == "1", f"{y}-{mo}-{d} {h}:{mi}:{s}")
 
     async def lift_ping(self) -> PingReport:
         """SerLink PING the hub's LIFT0 socket (LIFT0S...PING). Never raises once sent."""

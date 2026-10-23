@@ -1,4 +1,4 @@
-"""Dev tools (pages/DevPage.tsx): raw data to the hub's SerLink sockets."""
+"""Dev tools (pages/DevPage.tsx): raw data to the hub's SerLink sockets, and a read of its clock."""
 from __future__ import annotations
 
 import html
@@ -11,9 +11,9 @@ from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QSizePo
 
 from ...asyncutil import spawn
 from ...context import Context
-from ...types import HubSocket
+from ...types import HubClockReading, HubSocket
 from .. import theme
-from ..widgets.chrome import CmdButton, Panel, button, label
+from ..widgets.chrome import CmdButton, Field, Panel, button, label
 
 HISTORY = 20
 """Sends kept in each socket's history"""
@@ -121,6 +121,59 @@ class SocketSender(Panel):
         self.list.setText("<br>".join(rows))
 
 
+class HubClockPanel(Panel):
+    """The hub's clock, read on demand with RTC00 G (G120261023143007). The PC apps set it
+    once per run on connecting - Config -> ControlHub, "Set hub date time on app launch"."""
+
+    def __init__(self, ctx: Context) -> None:
+        super().__init__("hub clock")
+        self.ctx = ctx
+        self.busy = False
+        self.field = Field("Date / time", "The hub's local time")
+        self.field.edit.setReadOnly(True)
+        self.field.edit.setStyleSheet(f"font-family: {theme.MONO};")
+        self.body.addWidget(self.field)
+        row = QHBoxLayout()
+        self.get_btn = CmdButton("Get")
+        self.get_btn.setFixedWidth(100)
+        self.get_btn.clicked.connect(self._get)
+        row.addWidget(self.get_btn)
+        row.addStretch()
+        self.body.addLayout(row)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        ctx.comms.state_changed.connect(lambda _s: self.refresh())
+        self.refresh()
+
+    def _blocked(self) -> str:
+        """Why Get is disabled, if it is"""
+        s = self.ctx.comms.state
+        if s.status != "connected":
+            return "Connect first"
+        if s.kind == "sim":
+            return "Needs a serial or MQTT connection"
+        return ""
+
+    def refresh(self) -> None:
+        self.get_btn.set_state(self._blocked(), loading=self.busy)
+
+    def _get(self) -> None:
+        if self._blocked() or self.busy:
+            return
+        self.busy = True
+        self.refresh()
+
+        def done(reading: HubClockReading | None, err: BaseException | None = None) -> None:
+            self.busy = False
+            if err is not None:
+                self.field.set_helper(str(err), error=True)
+            elif reading is not None:
+                self.field.set_text(reading.date_time)
+                self.field.set_helper("The hub's local time" if reading.is_set else "Not set since power up")
+            self.refresh()
+
+        spawn(self.ctx.comms.rtc_get(), on_error=lambda e: done(None, e), on_done=done)
+
+
 class DevPage(QWidget):
     def __init__(self, ctx: Context) -> None:
         super().__init__()
@@ -130,4 +183,5 @@ class DevPage(QWidget):
         lift = SocketSender(ctx, "LIFT0", "BSF234", default_ack=False, mqtt_only=True)
         ctrl = SocketSender(ctx, "CTRL0", "BGA", default_ack=True)
         for p in (lift, ctrl):
-            row.addWidget(p, 1, Qt.AlignmentFlag.AlignTop)
+            row.addWidget(p, 2, Qt.AlignmentFlag.AlignTop)
+        row.addWidget(HubClockPanel(ctx), 1, Qt.AlignmentFlag.AlignTop)

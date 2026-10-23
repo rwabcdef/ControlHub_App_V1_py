@@ -13,8 +13,8 @@ from datetime import datetime
 
 from PySide6.QtSerialPort import QSerialPort, QSerialPortInfo
 
-from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, MotorDirection, MotorId,
-                     MotorReadback, SerialConfig, SerialPortInfo)
+from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockReading, HubClockSetResult, HubSocket,
+                     MotorDirection, MotorId, MotorReadback, SerialConfig, SerialPortInfo)
 from .errors import CommsError
 from .hub_link import HubLink
 from .transport import TransportEvents
@@ -127,3 +127,6 @@ class SerialTransport:
 
     async def rtc_set(self, when: datetime) -> HubClockSetResult:
         return await self._live().rtc_set(when)
+
+    async def rtc_get(self) -> HubClockReading:
+        return await self._live().rtc_get()

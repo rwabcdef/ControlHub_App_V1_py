@@ -24,8 +24,8 @@ from urllib.parse import urlsplit
 
 import paho.mqtt.client as mqtt
 
-from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, LiftDirection,
-                     MotorDirection, MotorId, MotorReadback, MqttConfig, MqttLogLine, PingReport)
+from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockReading, HubClockSetResult, HubSocket,
+                     LiftDirection, MotorDirection, MotorId, MotorReadback, MqttConfig, MqttLogLine, PingReport)
 from .errors import CommsError
 from .hub_link import HubLink
 from .transport import TransportEvents
@@ -206,6 +206,9 @@ class MqttTransport:
 
     async def rtc_set(self, when: datetime) -> HubClockSetResult:
         return await self._live().rtc_set(when)
+
+    async def rtc_get(self) -> HubClockReading:
+        return await self._live().rtc_get()
 
     async def lift_start(self, distance: int, direction: LiftDirection) -> None:
         await self._live().lift_start(distance, direction)

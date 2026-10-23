@@ -173,3 +173,18 @@ def test_rtc_set():
         hub.handle_rtc = lambda _data: None  # firmware without RTC00: a plain ACK_OK
         assert await link.rtc_set(datetime(2026, 10, 23)) == "noSocket"
     run(main())
+
+
+def test_rtc_get():
+    async def main():
+        link, hub, ev, w = await make()
+        hub.clock_reply = "G120261023143007"
+        r = await link.rtc_get()
+        assert (r.is_set, r.date_time) == (True, "2026-10-23 14:30:07")
+        assert hub.received[-1].protocol == "RTC00" and hub.received[-1].data == "G"
+        hub.clock_reply = "G020000101000012"
+        assert (await link.rtc_get()).is_set is False
+        hub.clock_reply = None  # firmware without RTC00: a plain ACK_OK
+        with pytest.raises(CommsError, match="no RTC00 socket"):
+            await link.rtc_get()
+    run(main())

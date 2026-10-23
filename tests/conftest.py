@@ -69,6 +69,8 @@ class FakeHub:
         self.motor_direction = "D"
         self.clock: str | None = None
         """RTC00: the last yyyymmddhhmmss taken; None until set"""
+        self.clock_reply: str | None = None
+        """RTC00 G's answer, e.g. G120261023143007; None = a plain ACK_OK"""
         self.received: list[Frame] = []
 
     def __call__(self, line: str) -> list[str]:
@@ -103,7 +105,9 @@ class FakeHub:
         return None
 
     def handle_rtc(self, data: str) -> str | None:
-        """rtcSockInstantHandler: S<yyyymmddhhmmss> answered S1 / S0 on the ack."""
+        """rtcSockInstantHandler: S<yyyymmddhhmmss> answered S1 / S0 on the ack, G with clock_reply."""
+        if data == "G":
+            return self.clock_reply
         if data[:1] != "S":
             return None
         ok = len(data) == 15 and data[1:].isdigit() and 2000 <= int(data[1:5]) <= 2099

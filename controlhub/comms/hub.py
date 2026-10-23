@@ -17,8 +17,8 @@ from PySide6.QtCore import QObject, Signal
 from ..asyncutil import spawn
 from ..settings import settings
 from ..state.telemetry import TelemetryStore
-from ..types import (CommsConfig, CommsState, CtrlDirection, CtrlReadback, CtrlSettings, HubSocket, LiftDirection,
-                     MotorDirection, MotorId, MotorReadback, PingReport, RawSample)
+from ..types import (CommsConfig, CommsState, CtrlDirection, CtrlReadback, CtrlSettings, HubClockReading, HubSocket,
+                     LiftDirection, MotorDirection, MotorId, MotorReadback, PingReport, RawSample)
 from .errors import CommsError
 from .mqtt_transport import MqttTransport
 from .serial_transport import SerialTransport, list_serial_ports
@@ -196,6 +196,9 @@ class CommsHub(QObject):
 
     async def lift_ping(self) -> PingReport:
         return await self._need("lift_ping", "Lift ping needs an MQTT connection")()
+
+    async def rtc_get(self) -> HubClockReading:
+        return await self._need("rtc_get", "The hub clock needs a serial or MQTT connection")()
 
     # ---- the hub's clock
     async def _hub_clock_loop(self, transport: Transport) -> None:
