@@ -43,7 +43,8 @@ def settings_path() -> Path:
 # ---- JSON <-> dataclasses, with the TS key names
 _KEYS = {"baud_rate": "baudRate", "telemetry_topic": "telemetryTopic", "command_topic": "commandTopic",
          "allowed_dirs": "allowedDirs", "control_hub": "controlHub", "lift_distance": "liftDistance",
-         "dial_rpm_max": "dialRpmMax", "rpm_max": "rpmMax", "current_max": "currentMax", "window_sec": "windowSec",
+         "dial_rpm_max": "dialRpmMax",
+         "set_hub_time_on_launch": "setHubTimeOnLaunch", "rpm_max": "rpmMax", "current_max": "currentMax", "window_sec": "windowSec",
          "left_panel_open": "leftPanelOpen", "dash_control_open": "dashControlOpen"}
 
 

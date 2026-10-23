@@ -17,15 +17,15 @@ on the loop's (the UI's) thread.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import time
 import uuid
 from urllib.parse import urlsplit
 
 import paho.mqtt.client as mqtt
 
-from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubSocket, LiftDirection, MotorDirection, MotorId,
-                     MotorReadback, MqttConfig, MqttLogLine,
-                     PingReport)
+from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, LiftDirection,
+                     MotorDirection, MotorId, MotorReadback, MqttConfig, MqttLogLine, PingReport)
 from .errors import CommsError
 from .hub_link import HubLink
 from .transport import TransportEvents
@@ -203,6 +203,9 @@ class MqttTransport:
 
     async def motor_set_direction(self, motor: MotorId, direction: MotorDirection) -> MotorDirection:
         return await self._live().motor_set_direction(motor, direction)
+
+    async def rtc_set(self, when: datetime) -> HubClockSetResult:
+        return await self._live().rtc_set(when)
 
     async def lift_start(self, distance: int, direction: LiftDirection) -> None:
         await self._live().lift_start(distance, direction)

@@ -15,22 +15,25 @@ def test_defaults_on_first_run(tmp_path):
     assert s.comms.kind == "mqtt" and s.comms.mqtt.url == "mqtt://192.168.0.196:1883"
     assert s.comms.mqtt.telemetry_topic == "hub/aa26/serlink/up" and s.comms.serial.baud_rate == 115200
     assert (s.control_hub.lift_distance, s.control_hub.dial_rpm_max) == (100, 300)
+    assert s.control_hub.set_hub_time_on_launch is True
     assert s.display.window_sec == 10 and s.allowed_dirs == []
 
 
 def test_merges_stored_values_and_keeps_ts_key_names(tmp_path):
     path = tmp_path / "settings.json"
     path.write_text(json.dumps({"comms": {"kind": "serial", "serial": {"path": "COM5"}, "mqtt": {"url": 7}},
-                                "controlHub": {"liftDistance": 250, "dialRpmMax": "x"}, "allowedDirs": ["C:/a", 3]}))
+                                "controlHub": {"liftDistance": 250, "dialRpmMax": "x", "setHubTimeOnLaunch": 1},
+                                "allowedDirs": ["C:/a", 3]}))
     store = SettingsStore(path)
     s = store.get()
     assert s.comms.kind == "serial" and s.comms.serial.path == "COM5" and s.comms.serial.baud_rate == 115200
     assert s.comms.mqtt.url == "mqtt://192.168.0.196:1883"  # malformed: default kept
     assert s.control_hub.lift_distance == 250 and s.control_hub.dial_rpm_max == 300
+    assert s.control_hub.set_hub_time_on_launch is True  # not a bool: default kept
     assert s.allowed_dirs == ["C:/a"]
-    store.update(control_hub=ControlHubSettings(lift_distance=40, dial_rpm_max=500))
+    store.update(control_hub=ControlHubSettings(lift_distance=40, dial_rpm_max=500, set_hub_time_on_launch=False))
     saved = json.loads(path.read_text())
-    assert saved["controlHub"] == {"liftDistance": 40, "dialRpmMax": 500}
+    assert saved["controlHub"] == {"liftDistance": 40, "dialRpmMax": 500, "setHubTimeOnLaunch": False}
     assert saved["comms"]["serial"] == {"path": "COM5", "baudRate": 115200}
     assert SettingsStore(path).get().control_hub.dial_rpm_max == 500
 

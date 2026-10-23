@@ -208,6 +208,15 @@ class ControlHubSettings:
     """Lift move distance, edges (1..LIFT_DISTANCE_MAX)"""
     dial_rpm_max: int = 300
     """Top of the dashboard's speed dial, RPM (1..CTRL_RPM_MAX)"""
+    set_hub_time_on_launch: bool = True
+    """Set the hub's clock (RTC00 S) to this PC's local time once per app run, on the first
+    connection to the hub that takes it. The hub has no clock battery, so it loses the
+    time when powered off."""
+
+
+HubClockSetResult = Literal["ok", "refused", "noSocket"]
+"""RTC00 S's outcome: taken (S1); refused (S0 - a date the hub can't hold, outside
+2000..2099); or no RTC00 socket on the hub (a plain ACK_OK, from firmware without a clock)."""
 
 
 @dataclass

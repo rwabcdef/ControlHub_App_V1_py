@@ -342,9 +342,14 @@ class ControlHubStore(QObject):
         super().__init__()
         self.values: ControlHubSettings = settings.get().control_hub
 
-    def save(self, lift_distance: int | None = None, dial_rpm_max: int | None = None) -> None:
+    def save(self, lift_distance: int | None = None, dial_rpm_max: int | None = None,
+             set_hub_time_on_launch: bool | None = None) -> None:
         """Check each field given, keep the rest; raises ValueError if one is out of range."""
         nxt = replace(self.values)
+        if set_hub_time_on_launch is not None:
+            if not isinstance(set_hub_time_on_launch, bool):
+                raise ValueError("Set hub date time on app launch must be True or False")
+            nxt.set_hub_time_on_launch = set_hub_time_on_launch
         if lift_distance is not None:
             if not isinstance(lift_distance, int) or not 1 <= lift_distance <= LIFT_DISTANCE_MAX:
                 raise ValueError(f"Lift distance must be a whole number from 1 to {LIFT_DISTANCE_MAX}")

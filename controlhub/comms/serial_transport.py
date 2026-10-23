@@ -9,10 +9,12 @@ with asyncio), so no extra thread is involved.
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtSerialPort import QSerialPort, QSerialPortInfo
 
-from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubSocket, MotorDirection, MotorId, MotorReadback,
-                     SerialConfig, SerialPortInfo)
+from ..types import (CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, MotorDirection, MotorId,
+                     MotorReadback, SerialConfig, SerialPortInfo)
 from .errors import CommsError
 from .hub_link import HubLink
 from .transport import TransportEvents
@@ -122,3 +124,6 @@ class SerialTransport:
 
     async def motor_set_direction(self, motor: MotorId, direction: MotorDirection) -> MotorDirection:
         return await self._live().motor_set_direction(motor, direction)
+
+    async def rtc_set(self, when: datetime) -> HubClockSetResult:
+        return await self._live().rtc_set(when)

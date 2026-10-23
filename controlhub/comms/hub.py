@@ -6,6 +6,7 @@ status and MQTT log lines are Qt signals, at their own low rates.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -30,6 +31,12 @@ log = logging.getLogger("SerLink")
 SERLINK_TRACE = bool(os.environ.get("SERLINK_DEBUG"))
 """Trace SerLink traffic to the console (python -m controlhub --debug sets it)."""
 
+HUB_CLOCK_RETRY_S = 10.0
+"""Until the hub's clock has been set this app run, try again this often while connected
+(see _hub_clock_loop)"""
+
+clock_log = logging.getLogger("controlhub.hub_clock")
+
 
 class CommsHub(QObject):
     state_changed = Signal(object)
@@ -47,6 +54,9 @@ class CommsHub(QObject):
         self._transport: Transport | None = None
         self._t0 = 0.0
         self._state = CommsState("disconnected", settings.get().comms.kind)
+        self._hub_clock_done = False
+        """The hub's clock has been dealt with this app run - set, or found not settable"""
+        self._hub_clock_busy = False
 
     @property
     def state(self) -> CommsState:
@@ -91,6 +101,8 @@ class CommsHub(QObject):
         def reconnected() -> None:
             if live():
                 self._set_state(CommsState("connected", cfg.kind))
+                if transport is not None:
+                    spawn(self._set_hub_clock(transport))
 
         def closed() -> None:
             if live():
@@ -122,6 +134,7 @@ class CommsHub(QObject):
             return
         if self._transport is transport:
             self._set_state(CommsState("connected", cfg.kind))
+            spawn(self._hub_clock_loop(transport))
 
     async def disconnect(self) -> None:
         t, self._transport = self._transport, None
@@ -183,6 +196,47 @@ class CommsHub(QObject):
 
     async def lift_ping(self) -> PingReport:
         return await self._need("lift_ping", "Lift ping needs an MQTT connection")()
+
+    # ---- the hub's clock
+    async def _hub_clock_loop(self, transport: Transport) -> None:
+        """Config -> ControlHub "Set hub date time on app launch" (on by default): set the
+        hub's clock (RTC00 S) to this PC's local time, once per app run. Tried as soon as a
+        connection opens and then every HUB_CLOCK_RETRY_S while it stays open, because the
+        hub may not be up yet - over MQTT the broker connects whether or not the hub is
+        there - until the hub answers. S0 (refused) or no RTC00 socket ends it too: a
+        retry would get the same answer. Not on the simulator, which has no rtc_set."""
+        if getattr(transport, "rtc_set", None) is None:
+            return
+        while not self._hub_clock_done and self._transport is transport:
+            await self._set_hub_clock(transport)
+            if self._hub_clock_done:
+                return
+            await asyncio.sleep(HUB_CLOCK_RETRY_S)
+
+    async def _set_hub_clock(self, transport: Transport) -> None:
+        rtc_set = getattr(transport, "rtc_set", None)
+        if self._hub_clock_done or self._hub_clock_busy or self._transport is not transport or rtc_set is None:
+            return
+        # Read each time: "on launch" means the setting as it is at the first chance, so
+        # switching it on later in the run does nothing until the next.
+        if not settings.get().control_hub.set_hub_time_on_launch:
+            self._hub_clock_done = True
+            return
+        self._hub_clock_busy = True
+        try:
+            now = datetime.now()
+            result = await rtc_set(now)
+            if result == "ok":
+                clock_log.info("set to %s", now.strftime("%Y-%m-%d %H:%M:%S"))
+            elif result == "refused":
+                clock_log.warning("the hub refused %s", now.strftime("%Y-%m-%d %H:%M:%S"))
+            else:
+                clock_log.warning("the hub has no RTC00 socket (firmware without a clock)")
+            self._hub_clock_done = True
+        except CommsError:
+            pass  # no ack (hub not up yet) or the link went: the next try, or connection, goes again
+        finally:
+            self._hub_clock_busy = False
 
     def _set_state(self, s: CommsState) -> None:
         self._state = s

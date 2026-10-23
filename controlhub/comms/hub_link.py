@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import re
+from datetime import datetime
 
 from ..types import (CTRL_DUTY_MAX, CTRL_DUTY_MIN, CTRL_GAIN_MAX, CTRL_GAIN_SCALE, CTRL_RPM_MAX, LIFT_DISTANCE_MAX,
-                     MOTOR_DUTY_MAX, MOTORS_FITTED, CtrlDirection, CtrlReadback, CtrlSettings, HubSocket, HubState,
+                     MOTOR_DUTY_MAX, MOTORS_FITTED, CtrlDirection, CtrlReadback, CtrlSettings, HubClockSetResult, HubSocket, HubState,
                      LiftDirection, MotorDirection, MotorId, MotorReadback, PingReport)
 from .errors import CommsError
 from .parser import parse_ctrl_status, parse_hub_mode, parse_lift_status, parse_line
@@ -26,6 +27,8 @@ LIFT_PROTOCOL = "LIFT0"
 """The hub's lift socket - only on its MQTT link (SerLink2)"""
 _LIFT_ID = "B"
 """The only lift on the hub"""
+RTC_PROTOCOL = "RTC00"
+"""The hub's real time clock socket - on both its links (uart2 and MQTT)"""
 
 _BGA_RE = re.compile(r"^(\d{6})\.(\d{4})\.(\d{4})$")
 _MOTOR_DIRECTION_FROM_CHAR: dict[str, MotorDirection] = {"F": "forward", "R": "reverse", "D": "disabled"}
@@ -53,6 +56,8 @@ class HubLink:
         self.motor: Socket = self.serlink.acquire_socket(MOTOR_PROTOCOL)
         """Sends only - the hub never sends MOTOR frames unasked"""
         self.lift: Socket | None = self.serlink.acquire_socket(LIFT_PROTOCOL, self._on_lift) if lift else None
+        self.rtc: Socket = self.serlink.acquire_socket(RTC_PROTOCOL)
+        """Sends only - the hub never sends RTC00 frames unasked"""
 
     # ---- in
     def receive_line(self, line: str) -> None:
@@ -283,6 +288,20 @@ class HubLink:
         if not payload:
             raise CommsError("Empty payload")
         return _check_result(protocol, await socket.send_data(payload, ack))
+
+    async def rtc_set(self, when: datetime) -> HubClockSetResult:
+        """Set the hub's clock to `when`, as this PC's local time, 24 hour:
+        RTC00T570015S20261023143005. Done on the ack, so the answer says whether it was
+        taken: S1 -> 'ok', S0 -> 'refused' (outside 2000..2099). A plain ACK_OK ->
+        'noSocket' (firmware without a clock). Raises CommsError with no ack."""
+        data = _check_result(RTC_PROTOCOL, await self.rtc.send_data(f"S{when:%Y%m%d%H%M%S}", True))
+        if data is None:
+            return "noSocket"
+        if data == "S1":
+            return "ok"
+        if data == "S0":
+            return "refused"
+        raise CommsError(f'{RTC_PROTOCOL}: unexpected S reply "{data}"')
 
     async def lift_ping(self) -> PingReport:
         """SerLink PING the hub's LIFT0 socket (LIFT0S...PING). Never raises once sent."""

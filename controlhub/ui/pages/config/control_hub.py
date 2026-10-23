@@ -3,13 +3,14 @@
 The controller settings live on the hub (CTRL0: BI gain, BM max duty, BR target speed -
 read on connecting, sent on Save) and apply to Control runs and lift moves alike; none
 of them starts anything. The dial's max speed and the lift distance are kept by the
-app, for the dashboard's speed dial and lift buttons.
+app, for the dashboard's speed dial and lift buttons, and so is whether the app sets the
+hub's clock when it connects.
 """
 from __future__ import annotations
 
 import re
 
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QHBoxLayout, QVBoxLayout, QWidget
 
 from ....asyncutil import spawn
 from ....context import Context
@@ -219,6 +220,43 @@ class AppSettingPanel(Panel):
             self.error.show_message(str(e))
 
 
+class HubClockPanel(Panel):
+    """Whether the app sets the hub's clock (RTC00 S) to this PC's local time once per run,
+    on the first connection the hub answers - see CommsHub._hub_clock_loop. Saved at once
+    (settings.json)."""
+
+    def __init__(self, ctx: Context) -> None:
+        super().__init__("Hub clock")
+        self.ctx = ctx
+        self.enabled = QCheckBox("Set hub date time on app launch")
+        self.enabled.toggled.connect(self._save)
+        self.body.addWidget(self.enabled)
+        self.body.addWidget(label("Sets the hub's clock to this PC's local time once each time the app runs, on the "
+                                  "first connection the hub answers. The hub has no clock battery, so it loses the "
+                                  "time when powered off (a reset keeps it). The hub stamps its SD card files with "
+                                  "this clock. The setting is read at the run's first connection to the hub.",
+                                  "caption", wrap=True))
+        self.error = Alert()
+        self.body.addWidget(self.error)
+        ctx.control_hub.changed.connect(self._load)
+        self._load()
+
+    def _load(self) -> None:
+        self.enabled.blockSignals(True)
+        self.enabled.setChecked(self.ctx.control_hub.values.set_hub_time_on_launch)
+        self.enabled.blockSignals(False)
+
+    def _save(self, checked: bool) -> None:
+        if checked == self.ctx.control_hub.values.set_hub_time_on_launch:
+            return
+        self.error.hide()
+        try:
+            self.ctx.control_hub.save(set_hub_time_on_launch=checked)
+        except (ValueError, OSError) as e:
+            self.error.show_message(str(e))
+            self._load()
+
+
 class ControlHubConfigPage(QWidget):
     def __init__(self, ctx: Context) -> None:
         super().__init__()
@@ -230,3 +268,4 @@ class ControlHubConfigPage(QWidget):
                                       "RPM - the top of the dashboard's speed dial"))
         lay.addWidget(AppSettingPanel(ctx, "Lift", "lift_distance", "Target distance", LIFT_DISTANCE_MAX,
                                       "tacho edges (2 per revolution)"))
+        lay.addWidget(HubClockPanel(ctx))

@@ -67,6 +67,8 @@ class FakeHub:
         self.source = "-"
         self.motor_duty = 0
         self.motor_direction = "D"
+        self.clock: str | None = None
+        """RTC00: the last yyyymmddhhmmss taken; None until set"""
         self.received: list[Frame] = []
 
     def __call__(self, line: str) -> list[str]:
@@ -79,7 +81,8 @@ class FakeHub:
         if f.type == "S":
             return [str(Frame(f.protocol, "A", f.roll_code, 8, "PINGBACK"))] if f.protocol in ("CTRL0", "LIFT0") \
                 else [str(Frame(f.protocol, "A", f.roll_code, Frame.ACK_OK))]
-        reply = self.handle_motor(f.data) if f.protocol == "MOTOR" else self.handle(f.data)
+        reply = self.handle_motor(f.data) if f.protocol == "MOTOR" else \
+            self.handle_rtc(f.data) if f.protocol == "RTC00" else self.handle(f.data)
         if reply is None:
             return [str(Frame(f.protocol, "A", f.roll_code, Frame.ACK_OK))]
         return [str(Frame(f.protocol, "A", f.roll_code, len(reply), reply))]
@@ -98,6 +101,15 @@ class FakeHub:
             elif cmd in ("DF", "DR", "DD"):
                 self.motor_direction = cmd[1]
         return None
+
+    def handle_rtc(self, data: str) -> str | None:
+        """rtcSockInstantHandler: S<yyyymmddhhmmss> answered S1 / S0 on the ack."""
+        if data[:1] != "S":
+            return None
+        ok = len(data) == 15 and data[1:].isdigit() and 2000 <= int(data[1:5]) <= 2099
+        if ok:
+            self.clock = data[1:]
+        return "S1" if ok else "S0"
 
     def handle(self, data: str) -> str | None:
         if data == "BGA":

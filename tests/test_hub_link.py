@@ -1,5 +1,6 @@
 """HubLink against a fake hub: the CTRL0 reads and read-back checks, status frames, LIFT0."""
 import asyncio
+from datetime import datetime
 
 import pytest
 from conftest import Events, FakeHub, Recorder, run
@@ -158,4 +159,17 @@ def test_motor_validation():
         with pytest.raises(CommsError, match="Direction must be"):
             await link.motor_set_direction("B", "up")  # type: ignore[arg-type]
         assert hub.received == []
+    run(main())
+
+
+def test_rtc_set():
+    async def main():
+        link, hub, ev, w = await make()
+        assert await link.rtc_set(datetime(2026, 10, 23, 14, 30, 5)) == "ok"
+        assert hub.received[-1].protocol == "RTC00" and hub.received[-1].data == "S20261023143005"
+        assert hub.clock == "20261023143005"
+        assert await link.rtc_set(datetime(2100, 1, 1)) == "refused"  # the hub holds 2000..2099
+        assert hub.clock == "20261023143005"
+        hub.handle_rtc = lambda _data: None  # firmware without RTC00: a plain ACK_OK
+        assert await link.rtc_set(datetime(2026, 10, 23)) == "noSocket"
     run(main())

@@ -36,8 +36,13 @@ use the simulator source, or a fake hub (see `tests/conftest.py` `FakeHub`).
   - `hub_link.py` handles the CTRL0 reads (BGA/BGM/BGD/BGO), and sets with read-back
     checks (BI/BR/BM → BGI/BGR/BGM). When a status frame shows the mode has changed,
     it reads BGO to learn the run's source. It also handles MOTOR (the Direct page:
-    `<id>P<ddd>` / `<id>D<F|R|D>`, read back with `<id>GP` / `<id>GD`) and LIFT0
-    (`'U'` frames, MQTT only).
+    `<id>P<ddd>` / `<id>D<F|R|D>`, read back with `<id>GP` / `<id>GD`), LIFT0
+    (`'U'` frames, MQTT only) and RTC00 (the hub's clock: `S<yyyymmddhhmmss>`, answered
+    `S1`/`S0` on the ack).
+  - `hub.py` sets the hub's clock to the PC's local time once per app run
+    (`_hub_clock_loop`, setting `set_hub_time_on_launch`, on by default, on Config →
+    ControlHub). It tries when a connection opens and every 10 s after that, until the
+    hub answers (`S1`; `S0` or no socket also end it). The hub has no clock battery.
   - `parser.py` decodes the CTRL0 status `<I|C|L><F|R><ddd>.<rpm>.<mA>[.<run target>]`
     and the LIFT0 status.
   - `mqtt_transport.py` runs paho-mqtt on its own thread. Every callback hops to the
