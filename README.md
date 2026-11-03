@@ -11,6 +11,9 @@ panel was dropped, because it only sent the simulator's placeholder commands.
 
 ## Run from source
 
+# this line to run app:
+.venv\Scripts\python -m controlhub
+
 ```bat
 py -3.14 -m venv .venv
 .venv\Scripts\python -m pip install -e .[dev]
